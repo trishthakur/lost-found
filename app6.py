@@ -16,7 +16,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text, Da
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-st.write("https://upload.wikimedia.org/wikipedia/commons/8/86/University_of_Colorado_Boulder_logo.png?20130415163019", width = 400)
+st.image("https://upload.wikimedia.org/wikipedia/commons/8/86/University_of_Colorado_Boulder_logo.png?20130415163019", width = 400)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
