@@ -409,3 +409,18 @@ if conn:
 else:
     st.sidebar.info("Failed to connect to the database.")
 
+# Display recently reported item
+with SessionLocal() as db:
+    try:
+        # Query the most recent lost item
+        last_reported_item = db.query(LostItem).order_by(LostItem.timestamp.desc()).first()
+        
+        if last_reported_item:
+            st.sidebar.markdown("## 🔔 Last Reported Item")
+            st.sidebar.info(f"Last item reported at {last_reported_item.timestamp}")
+        else:
+            st.sidebar.info("No items have been reported yet.")
+    except Exception as e:
+        st.error(f"Error retrieving last reported item: {e}")
+
+
