@@ -46,7 +46,7 @@ The app uses the CLIP model from OpenAI to compare image and text descriptions a
 # Database Models
 The application uses the following database tables to manage data:
 
-- **LostItems: Stores records of lost items, including image name, location, timestamp, embedding, and status.
-- **ResolvedItems: Stores records of items that have been found, including owner details.
-- **Users: Stores user information, including usernames, password hashes, and admin status.
-- **Locations: Stores campus, building, and contact email information for lost and found locations.
+- **LostItems**: Stores records of lost items, including image name, location, timestamp, embedding, and status.
+- **ResolvedItems**: Stores records of items that have been found, including owner details.
+- **Users**: Stores user information, including usernames, password hashes, and admin status.
+- **Locations**: Stores campus, building, and contact email information for lost and found locations.
