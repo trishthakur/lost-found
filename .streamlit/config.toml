@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#FF5733"  # Bright Orange as Primary Color
+backgroundColor = "#FFFFFF"  # White Background
+secondaryBackgroundColor = "#CFB87C"  # Gold for Sidebar/Secondary
+textColor = "#000000"  # Black Text for Contrast
+font = "sans serif"
