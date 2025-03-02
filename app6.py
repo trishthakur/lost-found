@@ -10,9 +10,10 @@ import hashlib
 import io
 import logging
 from mimetypes import guess_type
+import bcrypt  # Import bcrypt for password hashing
 
 # SQLAlchemy setup
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -56,7 +57,7 @@ class LostItem(Base):
 
     image_name = Column(String(255), primary_key=True)
     location = Column(String(255))
-    timestamp = Column(String(255))
+    timestamp = Column(DateTime, default=datetime.utcnow)
     embedding = Column(Text)
     status = Column(String(255))
 
@@ -66,7 +67,7 @@ class ResolvedItem(Base):
 
     image_name = Column(String(255), primary_key=True)
     location = Column(String(255))
-    timestamp = Column(String(255))
+    timestamp = Column(DateTime, default=datetime.utcnow)
     embedding = Column(Text)
     description = Column(Text)
     status = Column(String(255))
@@ -96,14 +97,6 @@ Base.metadata.create_all(engine)
 # Create a Session class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Dependency to get the database session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 # Load the CLIP model and processor (only once at startup)
 @st.cache_resource
 def load_model():
@@ -122,11 +115,12 @@ def initialize_tables(db: SessionLocal):
         if db.query(User).count() == 0:
             admin_username = 'admin'
             admin_password = 'password'  # PLEASE CHANGE THIS!
-            hashed_password = hashlib.sha256(admin_password.encode()).hexdigest()
+            hashed_password = bcrypt.hashpw(admin_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8') # Hash the admin password
             admin_user = User(username=admin_username, password_hash=hashed_password, is_admin=True)
             db.add(admin_user)
             db.commit()
     except Exception as e:
+        db.rollback()  # Rollback in case of error during initialization
         st.error(f"Error initializing tables: {e}")
 
 # Load location data from MySQL
@@ -141,15 +135,13 @@ def load_locations(db: SessionLocal):
 
 # User authentication functions
 def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def check_password(db: SessionLocal, username, password):
     try:
         user = db.query(User).filter(User.username == username).first()
         if user:
-            stored_password = user.password_hash
-            input_password_hash = hash_password(password)
-            return stored_password == input_password_hash
+            return bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8'))
         return False
     except Exception as e:
         st.error(f"Error checking password: {e}")
@@ -222,7 +214,7 @@ def find_best_match(db: SessionLocal, text_query=None, image_query=None):
 
     except Exception as e:
         st.error(f"Error during search: {e}")
-        return None, best_score
+        return None, None
 
 def mark_as_resolved(db: SessionLocal, image_name, owner_details):
     try:
@@ -321,7 +313,7 @@ with SessionLocal() as db:
                     lost_item = LostItem(
                         image_name=image_name,
                         location=location,
-                        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        timestamp=datetime.now(),  # Storing datetime object
                         embedding=image_embedding_str,
                         status="Lost"
                     )
@@ -372,27 +364,69 @@ with SessionLocal() as db:
                     st.info("No good matches found.")
 
     elif option == "Resolve Cases (Staff Only)":
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
+        if 'logged_in' not in st.session_state:
+            st.session_state.logged_in = False
 
-        if st.button("Login"):
-            if check_password(db, username, password) and is_admin(db, username):
-                st.success("Logged in as admin!")
-                image_name = st.text_input("Enter image name to resolve")
-                owner_details = st.text_area("Enter owner details")
+        if not st.session_state.logged_in:
+            st.subheader("Staff Login")
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password", )
+            login_button = st.button("Login")
 
-                if st.button("Mark as Resolved"):
-                    mark_as_resolved(db, image_name, owner_details)
-                    st.success(f"Item {image_name} marked as resolved.")
-            else:
-                st.error("Invalid credentials or not an admin.")
+            if login_button:
+                if check_password(db, username, password): # Pass db to check_password
+                    st.session_state.logged_in = True
+                    st.session_state.username = username
+                    st.success("Logged in successfully")
+                    st.rerun()
+                else:
+                    st.error("Incorrect username or password")
 
-# Display recently reported item
-with SessionLocal() as db:
+        if st.session_state.logged_in:
+            st.subheader(f"Welcome, {st.session_state.username}")
+            if st.button("Logout"):
+                st.session_state.logged_in = False
+                st.rerun()
+
+            st.subheader("Resolve Cases")
+            #conn = get_db_connection() #No need for this raw connection
+            #if conn:  No need for the raw connection check, we are in the db session
+            try:
+                #query = f"SELECT * FROM `{lost_items_table}` WHERE `status` = 'Lost'" No need for raw query
+                lost_items = db.query(LostItem).filter(LostItem.status == 'Lost').all() #SQLAlchemy Query
+                if not lost_items:
+                    st.info("No lost items to resolve.")
+                else:
+                    for item in lost_items: # Iterating through SQLAlchemy objects
+                        with st.expander(f"Item: {item.image_name}"): #Access attributes using . notation
+                            st.write(f"Location: {item.location}")
+                            st.write(f"Timestamp: {item.timestamp}")
+
+                            # Construct the public URL for the image
+                            public_url = f"https://storage.googleapis.com/{gcs_bucket_name}/{item.image_name}"
+                            st.image(public_url, width=200)
+
+                            owner_details = st.text_input("Enter owner details:", key=f"owner_{item.image_name}")
+                            if st.button(f"Resolve", key=f"resolve_{item.image_name}"):
+                                if owner_details:
+                                    mark_as_resolved(db, item.image_name, owner_details)  # Pass db to mark_as_resolved
+                                    st.success(f"Item {item.image_name} marked as resolved")
+                                    st.rerun()
+                                else:
+                                    st.warning("Please enter owner details before resolving.")
+
+            except Exception as e:
+                st.error(f"Error retrieving lost items: {e}")
+            #finally:
+                #conn.close() #No need to close the raw connection
+        #else:
+         #   st.error("Failed to connect to the database.")#No need, we handle the connection with "with SessionLocal() as db:"
+
+    # Display recently reported item (Moved outside the option checks)
     try:
         # Query the most recent lost item
         last_reported_item = db.query(LostItem).order_by(LostItem.timestamp.desc()).first()
-        
+
         if last_reported_item:
             st.sidebar.markdown("## 🔔 Last Reported Item")
             st.sidebar.info(f"Last item reported at {last_reported_item.timestamp}")
