@@ -55,6 +55,7 @@ mdurl==0.1.2
 mkl==2021.4.0
 ml-dtypes==0.4.1
 mpmath==1.3.0
+mysql-connector-python==9.2.0
 namex==0.0.8
 narwhals==1.16.0
 networkx==3.3
