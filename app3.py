@@ -40,6 +40,8 @@ if not Path(users_file).exists():
 
 # Load location data
 locations_df = pd.read_excel(locations_file)
+# Create a "Location" column in locations_df
+locations_df['Location'] = locations_df['Campus'] + ' - ' + locations_df['Building']
 campus_options = locations_df['Campus'].unique()
 
 # User authentication functions
@@ -149,28 +151,45 @@ st.title("Lost and Found Item Matcher")
 option = st.radio("Choose an option:", ("Report a Lost Item", "Find a Lost Item", "Resolve Cases (Staff Only)"))
 
 if option == "Report a Lost Item":
-    uploaded_file = st.file_uploader("Upload an image of the lost item", type=["png", "jpg", "jpeg"])
+    # Option to upload an image or take a picture
+    image_option = st.radio("Choose an image source:", ("Upload from computer", "Take a picture"))
+
+    uploaded_file = None  # Define uploaded_file outside the if block
+    image = None  # Define image outside the if block
+
+    if image_option == "Upload from computer":
+        uploaded_file = st.file_uploader("Upload an image of the lost item", type=["png", "jpg", "jpeg"])
+        if uploaded_file is not None:
+            image = Image.open(uploaded_file).convert("RGB")
+        else:
+            image = None
+    else:
+        captured_image = st.camera_input("Take a picture of the lost item")
+        if captured_image:
+            image = Image.open(captured_image).convert("RGB")
+        else:
+            image = None
     
     campus = st.selectbox("Select Campus", campus_options)
     buildings = locations_df[locations_df['Campus'] == campus]['Building'].unique()
     building = st.selectbox("Select Building", buildings)
     
     if st.button("Report"):
-        if uploaded_file is not None and building:
+        if image is not None and building:
             try:
-                image = Image.open(uploaded_file).convert("RGB")
                 timestamp = int(time.time())
-                image_name = f"{timestamp}_{uploaded_file.name}"
+                image_name = f"{timestamp}_{'captured_image.jpg' if image_option == 'Take a picture' else uploaded_file.name if uploaded_file else 'default.jpg'}" # Ensure filename is available
                 image_path = os.path.join(image_folder, image_name)
                 image.save(image_path)
 
                 # Generate embeddings
                 _, image_embedding = encode_text_and_image(image=image)
                 image_embedding_str = str(image_embedding.cpu().tolist()) if image_embedding is not None else None
+                location = f"{campus} - {building}"
 
                 new_entry = pd.DataFrame({
                     "Image Name": [image_name],
-                    "Location": [f"{campus} - {building}"],
+                    "Location": [location],
                     "Timestamp": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
                     "Embedding": [image_embedding_str],
                     "Description": [""],
@@ -186,7 +205,7 @@ if option == "Report a Lost Item":
             except Exception as e:
                 st.error(f"Error saving image: {e}")
         else:
-            st.warning("Please fill in all fields and upload an image.")
+            st.warning("Please fill in all fields and upload or take a picture.")
 
 elif option == "Find a Lost Item":
     search_option = st.radio("Search by:", ("Text Description", "Image"))
@@ -210,8 +229,12 @@ elif option == "Find a Lost Item":
                 df = pd.read_csv(excel_file)
                 match_info = df[df['Image Name'] == best_match]
                 location = match_info['Location'].values[0] if not match_info.empty else "Unknown"
+                # Get email from locations_df
+                email = locations_df[locations_df['Location'] == location]['Contact Email'].values[0] if location in locations_df['Location'].values else "Email not found"
                 st.image(os.path.join(image_folder, best_match), caption=f"Best Match: {best_match} (Similarity Score: {score:.4f})")
                 st.success(f"You can collect the item at: {location}")
+                st.info(f"Contact Email: {email}")
+
             else:
                 st.warning("No match found! Try refining your description or using another image.")
         else:
