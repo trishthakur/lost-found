@@ -364,27 +364,62 @@ with SessionLocal() as db:
                     st.info("No good matches found.")
 
     elif option == "Resolve Cases (Staff Only)":
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
+        if 'logged_in' not in st.session_state:
+            st.session_state.logged_in = False
 
-        if st.button("Login"):
-            if check_password(db, username, password) and is_admin(db, username):
-                st.success("Logged in as admin!")
-                image_name = st.text_input("Enter image name to resolve")
-                owner_details = st.text_area("Enter owner details")
+        if not st.session_state.logged_in:
+            st.subheader("Staff Login")
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            login_button = st.button("Login")
 
-                if st.button("Mark as Resolved"):
-                    mark_as_resolved(db, image_name, owner_details)
-                    st.success(f"Item {image_name} marked as resolved.")
-            else:
-                st.error("Invalid credentials or not an admin.")
+            if login_button:
+                if check_password(db, username, password):
+                    st.session_state.logged_in = True
+                    st.session_state.username = username
+                    st.success("Logged in successfully")
+                    st.rerun()
+                else:
+                    st.error("Incorrect username or password")
 
-# Display recently reported item
-with SessionLocal() as db:
+        if st.session_state.logged_in:
+            st.subheader(f"Welcome, {st.session_state.username}")
+            if st.button("Logout"):
+                st.session_state.logged_in = False
+                st.rerun()
+
+            st.subheader("Resolve Cases")
+            try:
+                lost_items = db.query(LostItem).filter(LostItem.status == 'Lost').all()
+                if not lost_items:
+                    st.info("No lost items to resolve.")
+                else:
+                    for item in lost_items:
+                        with st.expander(f"Item: {item.image_name}"):
+                            st.write(f"Location: {item.location}")
+                            st.write(f"Timestamp: {item.timestamp}")
+
+                            # Construct the public URL for the image
+                            public_url = f"https://storage.googleapis.com/{gcs_bucket_name}/{item.image_name}"
+                            st.image(public_url, width=200)
+
+                            owner_details = st.text_input("Enter owner details:", key=f"owner_{item.image_name}")
+                            if st.button(f"Resolve", key=f"resolve_{item.image_name}"):
+                                if owner_details:
+                                    mark_as_resolved(db, item.image_name, owner_details)
+                                    st.success(f"Item {item.image_name} marked as resolved")
+                                    st.rerun()
+                                else:
+                                    st.warning("Please enter owner details before resolving.")
+
+            except Exception as e:
+                st.error(f"Error retrieving lost items: {e}")
+
+    # Display recently reported item
     try:
         # Query the most recent lost item
         last_reported_item = db.query(LostItem).order_by(LostItem.timestamp.desc()).first()
-        
+
         if last_reported_item:
             st.sidebar.markdown("## 🔔 Last Reported Item")
             st.sidebar.info(f"Last item reported at {last_reported_item.timestamp}")
@@ -392,3 +427,4 @@ with SessionLocal() as db:
             st.sidebar.info("No items have been reported yet.")
     except Exception as e:
         st.error(f"Error retrieving last reported item: {e}")
+
