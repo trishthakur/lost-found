@@ -180,7 +180,7 @@ def encode_text_and_image(text=None, image_path=None, image=None):
         st.error(f"Error processing input: {e}")
         return None, None
 
-def find_best_match(db: SessionLocal, text_query=None, image_query=None, similarity_threshold=0.1):
+def find_best_match(db: SessionLocal, text_query=None, image_query=None, similarity_threshold=0.2):
     best_match = None
     best_score = -1
     
