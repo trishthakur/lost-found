@@ -390,3 +390,22 @@ with SessionLocal() as db:
             else:
                 st.error("Invalid credentials or not an admin.")
 
+# Display recently reported item
+conn = get_db_connection()
+if conn:
+    try:
+        query = f"SELECT * FROM `{lost_items_table}` ORDER BY `timestamp` DESC LIMIT 1"
+        last_reported_item = pd.read_sql(query, conn)
+        
+        if not last_reported_item.empty:
+            st.sidebar.markdown("## 🔔 Last Reported Item")
+            st.sidebar.info(f"Last item reported at {last_reported_item['timestamp'].values[0]}")
+        else:
+            st.sidebar.info("No items have been reported yet.")
+    except mysql.connector.Error as e:
+        st.error(f"Error retrieving last reported item: {e}")
+    finally:
+        conn.close()
+else:
+    st.sidebar.info("Failed to connect to the database.")
+
