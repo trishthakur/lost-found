@@ -9,6 +9,7 @@ This is a Streamlit-based application that allows users to report lost items, se
 - **Resolve Cases (Staff Only)**: Staff can mark lost items as resolved and provide owner details for retrieval.
 - **User Authentication**: Admin users can access and resolve lost items through a login system.
 - **Database Management**: The application automatically creates and manages a MySQL database for storing lost items, resolved items, users, and locations.
+- **Image data storage**: The images that the person reporting uploads is stored in a google cloud storage bucket.
 
 ## Prerequisites
 
