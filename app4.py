@@ -15,8 +15,15 @@ from mimetypes import guess_type
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-credentials = bucket.Credentials.from_service_account_info(GCP_KEY)
+gcp_key = st.secrets["GCP_KEY"]
 
+# Save the key to a temporary file
+key_path = "service-account.json"
+with open(key_path, "w") as f:
+    f.write(gcp_key)
+
+# Set the environment variable
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = key_path
 # Google Cloud Storage setup
 from google.cloud import storage
 gcs_bucket_name = "lost_items"  # Replace with your bucket name
