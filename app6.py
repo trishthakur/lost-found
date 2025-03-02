@@ -180,10 +180,10 @@ def encode_text_and_image(text=None, image_path=None, image=None):
         st.error(f"Error processing input: {e}")
         return None, None
 
-def find_best_match(db: SessionLocal, text_query=None, image_query=None):
+def find_best_match(db: SessionLocal, text_query=None, image_query=None, similarity_threshold=0.1):
     best_match = None
     best_score = -1
-
+    
     try:
         lost_items = db.query(LostItem).all()
         df = pd.DataFrame([(item.image_name, item.embedding) for item in lost_items], columns=['image_name', 'embedding'])
@@ -205,14 +205,20 @@ def find_best_match(db: SessionLocal, text_query=None, image_query=None):
                         if query_img_emb is not None:
                             score += torch.cosine_similarity(query_img_emb, stored_embedding).item()
 
-                        if score > best_score:
+                        # Add the similarity threshold check here
+                        if score > best_score and score >= similarity_threshold:
                             best_score = score
                             best_match = row['image_name']
+
                     except (SyntaxError, NameError, TypeError) as e:
                         st.warning(f"Invalid embedding data for {row['image_name']}. Skipping. Error: {e}")
                         continue
 
         return best_match, best_score
+
+    except Exception as e:
+        st.error(f"Error during search: {e}")
+        return None, best_score
 
     except Exception as e:
         st.error(f"Error during search: {e}")
