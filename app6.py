@@ -193,8 +193,6 @@ def find_best_match(db: SessionLocal, text_query=None, image_query=None):
         #df = pd.read_sql(f"SELECT `image_name`, `embedding` FROM `{lost_items_table}`", conn)
         lost_items = db.query(LostItem).all()
         df = pd.DataFrame([(item.image_name, item.embedding) for item in lost_items], columns=['image_name', 'embedding'])
-
-
         if 'embedding' not in df.columns:
             st.error("'embedding' column is missing from the table.")
             return None, best_score
@@ -329,7 +327,6 @@ with SessionLocal() as db:
                     )
                     db.add(lost_item)
                     db.commit()
-
                     st.success(f"Item saved as {image_name} in GCS and recorded in the database with location '{building} ({campus})'")
 
                 except Exception as e:
@@ -391,25 +388,6 @@ with SessionLocal() as db:
                 st.error("Invalid credentials or not an admin.")
 
 # Display recently reported item
-conn = get_db_connection()
-if conn:
-    try:
-        query = f"SELECT * FROM `{lost_items_table}` ORDER BY `timestamp` DESC LIMIT 1"
-        last_reported_item = pd.read_sql(query, conn)
-        
-        if not last_reported_item.empty:
-            st.sidebar.markdown("## 🔔 Last Reported Item")
-            st.sidebar.info(f"Last item reported at {last_reported_item['timestamp'].values[0]}")
-        else:
-            st.sidebar.info("No items have been reported yet.")
-    except mysql.connector.Error as e:
-        st.error(f"Error retrieving last reported item: {e}")
-    finally:
-        conn.close()
-else:
-    st.sidebar.info("Failed to connect to the database.")
-
-# Display recently reported item
 with SessionLocal() as db:
     try:
         # Query the most recent lost item
@@ -422,5 +400,3 @@ with SessionLocal() as db:
             st.sidebar.info("No items have been reported yet.")
     except Exception as e:
         st.error(f"Error retrieving last reported item: {e}")
-
-
