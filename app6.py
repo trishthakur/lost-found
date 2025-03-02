@@ -246,7 +246,7 @@ def mark_as_resolved(db: SessionLocal, image_name, owner_details):
         st.error(f"Error marking as resolved: {e}")
 
 # Streamlit UI
-st.title("Lost and Found Item Matcher")
+st.title("Lost and Found")
 
 # Main application logic
 option = st.radio("Choose an option:", ("Report a Lost Item", "Find a Lost Item", "Resolve Cases (Staff Only)"))
