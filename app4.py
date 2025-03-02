@@ -15,6 +15,8 @@ from mimetypes import guess_type
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+credentials = service_account.Credentials.from_service_account_info(GCP_KEY)
+
 # Google Cloud Storage setup
 from google.cloud import storage
 gcs_bucket_name = "lost_items"  # Replace with your bucket name
