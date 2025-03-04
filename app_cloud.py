@@ -198,7 +198,7 @@ def find_best_match(db: SessionLocal, text_query=None, image_query=None, similar
                 if pd.notnull(row['embedding']):
                     try:
                         stored_embedding = torch.tensor(eval(row['embedding']))
-
+                        #check below
                         score = 0
                         if query_text_emb is not None:
                             score += torch.cosine_similarity(query_text_emb, stored_embedding).item()
